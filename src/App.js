@@ -1,6 +1,7 @@
-import React, { useState }  from 'react'
+import React, { useState, useEffect }  from 'react'
 import {isEmpty, size} from 'lodash'
 import shortid from 'shortid'
+import { addDocument, deleteDocument, getCollection, updateDocument } from './actions'
 
 function App() {
   const [task, setTask] = useState("")
@@ -9,6 +10,16 @@ function App() {
   const [id, setId] = useState("")
   const [error, setError] = useState(null)
 
+  useEffect(() => {
+    (async () => {
+      const result = await getCollection("tasks")
+      if(result.statusResponse)
+      {
+        setTasks(result.data)
+      }
+      
+    })()
+  }, [])
 
   const ValidarForm = () => {
     let isValid = true
@@ -22,29 +33,41 @@ function App() {
     return isValid
   }
 
-  const addTask = (e) => {
+  const addTask = async(e) => {
     e.preventDefault()
         
     if (!ValidarForm()){
       return
     }
 
-    const newTask = {
-      id: shortid.generate(),
-      name: task
+    const result = await addDocument("tasks", {name: task})
+
+    if(!result.statusResponse)
+    {
+        setError(result.error)
+        return
     }
-    
-    setTasks([ ...tasks, newTask ])
+    //const newTask = {
+      //id: shortid.generate(),
+      //name: task
+    //}
+    setTasks([...tasks, {id: result.data.id, name: task}])
+    //setTasks([ ...tasks, newTask ])
     setTask("")
   }
 
-  const saveTask = (e) => {
+  const saveTask = async(e) => {
     e.preventDefault()
 
     if (!ValidarForm()){
       return
     }
 
+    const result = await updateDocument("tasks", id, {name: task})
+    if(!result.statusResponse){
+      setError(result.error)
+      return
+    }
     const editedTasks = tasks.map(item => item.id === id ? {id, name: task} : item)
     setTasks(editedTasks)
     setEditMode(false)
@@ -52,7 +75,13 @@ function App() {
     setId("")
   }
 
-  const deleteTask=(id) => {
+  const deleteTask=async(id) => {
+    const result = await deleteDocument("tasks", id)
+    if(!result.statusResponse)
+    {
+      setError(error)
+      return
+    }
     const filteredTasks = tasks.filter(task => task.id !== id)
     setTasks(filteredTasks)
   }
